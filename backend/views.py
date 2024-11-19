@@ -63,6 +63,7 @@ def resume_creator(request):
     if request.method == "POST":
         # Parse the JSON data sent from the frontend
         data = json.loads(request.body)
+        print(data)
         user_query = data.get("resumeContent", "")
 
         print(user_query)
@@ -72,13 +73,19 @@ def resume_creator(request):
             ("human", json.dumps(user_query)),
         ]
 
-        # # Invoke the LLM with the messages
+        # Invoke the LLM with the messages
         ai_msg = llm.invoke(messages)
-        # ai_msg = agent.invoke(prompt + search_query)
         tokens = tc.num_tokens_from_string(ai_msg.content)
         print(ai_msg.content)
         print(f"journey analysis OUTPUT: Tokens in the string: {tokens}")
-        return JsonResponse({"content": ai_msg.content})
-        # return JsonResponse({"content": ai_msg.content})
+
+        # Try parsing the response content as JSON
+        try:
+            content = json.loads(ai_msg.content)
+        except json.JSONDecodeError:
+            # If parsing fails, return the content as a string
+            return JsonResponse({"error": "Invalid JSON response from LLM", "content": ai_msg.content}, status=500)
+
+        return JsonResponse({"content": content})
 
     return JsonResponse({"error": "Invalid request method"}, status=400)

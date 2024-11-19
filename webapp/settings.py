@@ -30,12 +30,18 @@ SECRET_KEY = "django-insecure-e18sp@zij0k3c=-b*2(gb56w$0%kpt_4xy7mze(=lwx!iu-ym2
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+CORS_ALLOW_ALL_ORIGINS = True
+
+ALLOWED_HOSTS = ["localhost"]
 
 
 # Application definition
 
+
 INSTALLED_APPS = [
+    "corsheaders",
+    "backend",
+    "rest_framework",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -45,6 +51,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -52,6 +59,14 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+]
+
+
+# CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:4000",  # If you want to allow requests from your local environment
+    "http://localhost:4100",
+    "http://localhost:5000",
 ]
 
 ROOT_URLCONF = "webapp.urls"
