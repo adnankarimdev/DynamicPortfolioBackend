@@ -1,5 +1,7 @@
 from django.http import HttpResponse
 from django.http import HttpResponse
+import fitz  # PyMuPDF
+import io
 import os
 from dotenv import load_dotenv
 from collections import defaultdict
@@ -89,3 +91,53 @@ def resume_creator(request):
         return JsonResponse({"content": content})
 
     return JsonResponse({"error": "Invalid request method"}, status=400)
+
+
+
+def create_portfolio(resume):
+        messages = [
+            ("system", prompt_resume_creator),
+            ("human", resume),
+        ]
+
+        # Invoke the LLM with the messages
+        ai_msg = llm.invoke(messages)
+        tokens = tc.num_tokens_from_string(ai_msg.content)
+        print(ai_msg.content)
+        print(f"journey analysis OUTPUT: Tokens in the string: {tokens}")
+
+        # Try parsing the response content as JSON
+        try:
+            content = json.loads(ai_msg.content)
+        except json.JSONDecodeError:
+            # If parsing fails, return the content as a string
+            return "error"
+
+        return content
+@csrf_exempt
+def pdf_data(request):
+    if request.method == 'POST' and request.FILES.get('pdf'):
+        uploaded_file = request.FILES['pdf']
+        
+        # Read the uploaded file directly into memory
+        file_bytes = uploaded_file.read()
+        
+        try:
+            # Open the PDF file from memory using PyMuPDF
+            doc = fitz.open(stream=file_bytes, filetype="pdf")
+            text = ""
+            
+            # Extract text from each page
+            for page_num in range(doc.page_count):
+                page = doc.load_page(page_num)
+                text += page.get_text()
+
+            # Return the extracted text as a response
+            content = create_portfolio(text)
+            return JsonResponse({"content": content})
+        
+        except Exception as e:
+            # Catch errors and return them in the response
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "No PDF file uploaded"}, status=400)
