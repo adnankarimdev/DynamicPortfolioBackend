@@ -42,6 +42,8 @@ from token_count import TokenCount
 from datetime import datetime
 import pytz
 from twilio.rest import Client
+from backend.prompts import (prompt_resume_creator)
+tc = TokenCount(model_name="gpt-4o-mini")
 
 llm = ChatOpenAI(
     model="gpt-4o-mini",
@@ -52,5 +54,31 @@ llm = ChatOpenAI(
 )
 
 
-def index(request):
-    return HttpResponse("Hello, world. You're at the polls index.")
+@csrf_exempt
+def resume_creator(request):
+    global prompt_resume_creator
+    tokens = tc.num_tokens_from_string(prompt_resume_creator)
+    print(f"journey analysis with badges INPUT: Tokens in the string: {tokens}")
+
+    if request.method == "POST":
+        # Parse the JSON data sent from the frontend
+        data = json.loads(request.body)
+        user_query = data.get("resumeContent", "")
+
+        print(user_query)
+
+        messages = [
+            ("system", prompt_resume_creator),
+            ("human", json.dumps(user_query)),
+        ]
+
+        # # Invoke the LLM with the messages
+        ai_msg = llm.invoke(messages)
+        # ai_msg = agent.invoke(prompt + search_query)
+        tokens = tc.num_tokens_from_string(ai_msg.content)
+        print(ai_msg.content)
+        print(f"journey analysis OUTPUT: Tokens in the string: {tokens}")
+        return JsonResponse({"content": ai_msg.content})
+        # return JsonResponse({"content": ai_msg.content})
+
+    return JsonResponse({"error": "Invalid request method"}, status=400)

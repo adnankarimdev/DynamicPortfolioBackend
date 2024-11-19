@@ -1,7 +1,7 @@
 from django.urls import path
 
-from .views import (index)
+from .views import (resume_creator)
 
 urlpatterns = [
-    path("index/", index, name="index"),
+    path("resume-creator/", resume_creator, name="resume_creator"),
 ]
