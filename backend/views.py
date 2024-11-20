@@ -23,6 +23,9 @@ from langchain_openai import ChatOpenAI
 from langchain.agents.agent_types import AgentType
 from langchain_experimental.agents.agent_toolkits import create_csv_agent
 import pickle
+from .serializers import (
+    UserSerializer,
+)
 
 # from langchain.vectorstores import FAISS
 # from langchain.embeddings import OpenAIEmbeddings
@@ -62,6 +65,95 @@ llm = ChatOpenAI(
     timeout=None,
     max_retries=2,
 )
+
+
+SECRET_KEY = settings.SECRET_KEY
+
+@csrf_exempt
+def sign_up_user(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)  # Parse the JSON body of the request
+        except json.JSONDecodeError:
+            return JsonResponse(
+                {"error": "Invalid JSON data"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = UserSerializer(data=data)
+        if serializer.is_valid():
+            # Save the new user
+            user = serializer.save()
+
+            # Generate the JWT token after user creation
+            token = jwt.encode(
+                {"email": user.email, "exp": datetime.utcnow() + timedelta(hours=24)},  # 24-hour expiry
+                SECRET_KEY,
+                algorithm="HS256",
+            )
+
+            # Return user data along with the JWT token
+            return JsonResponse(
+                {
+                    "message": "User created successfully",
+                    "token": token,
+                    "user": {
+                        "email": user.email,
+                    },
+                },
+                status=status.HTTP_201_CREATED,
+            )
+        return JsonResponse(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        return JsonResponse(
+            {"error": "Only POST requests are allowed"},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+    
+@csrf_exempt
+def log_in_user(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)  # Parse the JSON body of the request
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON data"}, status=400)
+
+        email = data.get("email")
+        password = data.get("password")
+
+        if not email or not password:
+            return JsonResponse(
+                {"error": "Email and password are required"}, status=400
+            )
+
+        user = authenticate(request, username=email, password=password)
+
+        if user is not None:
+            login(request, user)
+
+            # Generate a token (if using JWT)
+            token = jwt.encode({"email": user.email, "exp": datetime.utcnow() + timedelta(hours=24)}, SECRET_KEY, algorithm="HS256")
+
+            return JsonResponse(
+                {
+                    "message": "Logged in successfully",
+                    "token": token,
+                    "user": {
+                        "id": user.id,
+                        "email": user.email,
+                    },
+                },
+                status=200,
+            )
+        else:
+            return JsonResponse(
+                {"error": "Invalid email or password"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+    else:
+        return JsonResponse(
+            {"error": "Only POST requests are allowed"},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
 
 
 @csrf_exempt
