@@ -27,6 +27,9 @@ from .serializers import (
     UserSerializer,
 )
 
+from .models import (
+    CustomUser
+)
 # from langchain.vectorstores import FAISS
 # from langchain.embeddings import OpenAIEmbeddings
 from langchain.chains import RetrievalQA
@@ -68,6 +71,101 @@ llm = ChatOpenAI(
 
 
 SECRET_KEY = settings.SECRET_KEY
+
+
+@csrf_exempt
+def get_website_details(request):
+    # Get the Authorization header
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return JsonResponse({"error": "Authorization token missing or invalid"}, status=401)
+
+    token = auth_header.split(" ")[1]
+
+    try:
+        # Decode the token
+        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        email = decoded_token.get("email")  # Extract the email from the decoded token
+
+        # Retrieve the user data using the email
+        user = CustomUser.objects.get(email=email)  # Use the email field
+        data_to_return = user.data
+        return JsonResponse({"content": data_to_return}, status=200)
+
+    except jwt.ExpiredSignatureError:
+        return JsonResponse({"error": "Token has expired"}, status=401)
+    except jwt.InvalidTokenError:
+        return JsonResponse({"error": "Invalid token"}, status=401)
+    except ObjectDoesNotExist:
+        return JsonResponse({"error": "User not found"}, status=404)
+    
+@csrf_exempt
+def save_website_details(request):
+    if request.method == "POST":
+        try:
+            # Parse the JSON body of the request
+            data = json.loads(request.body)
+            website_data = data.get("data")
+            user_token = data.get("userToken")
+
+            if not website_data or not user_token:
+                return JsonResponse(
+                    {"error": "Missing data or user token"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Decode the JWT token to extract the email
+            try:
+                decoded_token = jwt.decode(
+                    user_token, settings.SECRET_KEY, algorithms=["HS256"]
+                )
+                user_email = decoded_token.get("email")
+            except jwt.ExpiredSignatureError:
+                return JsonResponse(
+                    {"error": "Token has expired"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            except jwt.InvalidTokenError:
+                return JsonResponse(
+                    {"error": "Invalid token"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Retrieve the user from the database
+            try:
+                user = CustomUser.objects.get(email=user_email)
+            except CustomUser.DoesNotExist:
+                return JsonResponse(
+                    {"error": "User not found"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Save the website data
+            user.data = website_data
+            email_username = user.email.split('@')[0]
+            user.url = "http://localhost:5000/" + email_username
+            user.save()
+
+            return JsonResponse(
+                {"message": "Website details saved successfully"}, 
+                status=status.HTTP_200_OK
+            )
+
+        except json.JSONDecodeError:
+            return JsonResponse(
+                {"error": "Invalid JSON data"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            return JsonResponse(
+                {"error": str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    else:
+        return JsonResponse(
+            {"error": "Invalid HTTP method"}, 
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
 
 @csrf_exempt
 def sign_up_user(request):
