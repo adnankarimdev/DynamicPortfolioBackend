@@ -73,6 +73,23 @@ llm = ChatOpenAI(
 SECRET_KEY = settings.SECRET_KEY
 
 
+
+@csrf_exempt
+def get_website_details_by_url(request, slug):
+    try:
+        # Retrieve the user data using the email
+        user_url = "http://localhost:5000/" + slug
+        user = CustomUser.objects.get(url=user_url)  # Use the email field
+        data_to_return = user.data
+        return JsonResponse({"content": data_to_return}, status=200)
+
+    except jwt.ExpiredSignatureError:
+        return JsonResponse({"error": "Token has expired"}, status=401)
+    except jwt.InvalidTokenError:
+        return JsonResponse({"error": "Invalid token"}, status=401)
+    except ObjectDoesNotExist:
+        return JsonResponse({"error": "User not found"}, status=404)
+    
 @csrf_exempt
 def get_website_details(request):
     # Get the Authorization header
@@ -143,11 +160,12 @@ def save_website_details(request):
             # Save the website data
             user.data = website_data
             email_username = user.email.split('@')[0]
-            user.url = "http://localhost:5000/" + email_username
+            user_url = "http://localhost:5000/" + email_username
+            user.url = user_url
             user.save()
 
             return JsonResponse(
-                {"message": "Website details saved successfully"}, 
+                {"message": "Website details saved successfully", "url": user_url}, 
                 status=status.HTTP_200_OK
             )
 

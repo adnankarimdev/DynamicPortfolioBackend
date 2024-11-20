@@ -110,11 +110,101 @@ I will be giving you a resume/cv. Your goal is to extract the information and pu
         }
       ]
     }
+  ],
+  "papers": [
+    {
+      "title": "",
+      "coAuthors": [],
+      "publicationDate": "",
+      "conference": "",
+      "journal": "",
+      "doi": "",
+      "abstract": "",
+      "link": ""
+    }
+  ],
+  "certifications": [
+    {
+      "title": "",
+      "issuingOrganization": "",
+      "logoUrl": "",
+      "dateIssued": "",
+      "credentialId": "",
+      "url": ""
+    }
+  ],
+  "volunteerWork": [
+    {
+      "organization": "",
+      "role": "",
+      "location": "",
+      "start": "",
+      "end": "",
+      "description": ""
+    }
+  ],
+  "awards": [
+    {
+      "title": "",
+      "organization": "",
+      "dateAwarded": "",
+      "description": ""
+    }
+  ],
+  "languages": [
+    {
+      "name": "",
+      "proficiency": ""
+    }
+  ],
+  "interests": [
+    {
+      "name": "",
+      "icon": ""
+    }
+  ],
+  "testimonials": [
+    {
+      "name": "",
+      "role": "",
+      "quote": "",
+      "organization": "",
+      "avatarUrl": ""
+    }
+  ],
+  "openSourceContributions": [
+    {
+      "project": "",
+      "repository": "",
+      "role": "",
+      "description": "",
+      "contributionDate": ""
+    }
+  ],
+  "speakingEngagements": [
+    {
+      "title": "",
+      "event": "",
+      "location": "",
+      "date": "",
+      "slidesLink": "",
+      "description": ""
+    }
+  ],
+  "patents": [
+    {
+      "title": "",
+      "patentId": "",
+      "description": "",
+      "dateFiled": "",
+      "status": "",
+      "url": ""
+    }
   ]
 }
 
 Fill in the fields with appropriate information. You should also generate the description and summary field based on the resume/cv. Return ONLY the JSON object with no additional text or formatting. All string values must be wrapped in double quotes. For all logos, like logoUrl, find links online for that company that you can find. Ensure the response can be parsed by json.loads() in Python.
-Also, If hackathon data does not exist or is unavailable, create a "papers" section instead for publications. Projects, hackathons and papers are all different. Use the same format as the "hackathons" key, but replace "hackathons" with "projects" and fill in project-specific details.
+Note: for coAuthors, also include the name of the person who submitted this resume. Awards can be grants too. Please use your reasoning to figure out what should be included in the awards section.
 
 
 
