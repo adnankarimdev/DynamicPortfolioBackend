@@ -47,6 +47,14 @@ from twilio.rest import Client
 from backend.prompts import (prompt_resume_creator)
 tc = TokenCount(model_name="gpt-4o-mini")
 
+# llm = ChatOpenAI(
+#     model="gpt-4o",
+#     temperature=1,
+#     max_tokens=None,
+#     timeout=None,
+#     max_retries=2,
+# )
+
 llm = ChatOpenAI(
     model="gpt-4o-mini",
     temperature=1,
