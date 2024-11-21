@@ -349,6 +349,7 @@ def pdf_data(request):
                 text += page.get_text()
 
             # Return the extracted text as a response
+            print("Creating portfolio...")
             content = create_portfolio(text)
             return JsonResponse({"content": content})
         
