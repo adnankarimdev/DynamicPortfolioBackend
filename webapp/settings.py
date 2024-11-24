@@ -26,6 +26,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-e18sp@zij0k3c=-b*2(gb56w$0%kpt_4xy7mze(=lwx!iu-ym2"
+SUPABASE_URL="https://vchzcpsjnexzrzeqamix.supabase.co"
+SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZjaHpjcHNqbmV4enJ6ZXFhbWl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzIwODEzNjEsImV4cCI6MjA0NzY1NzM2MX0.kl5Lh8hphOTE-zDWNcdtFyeqnJ6yQLPm_jlYE-AQu2M"
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True

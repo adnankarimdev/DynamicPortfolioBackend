@@ -9,6 +9,7 @@ from django.views.decorators.http import require_http_methods
 import time
 import re
 import json
+from supabase import create_client, Client
 import hashlib
 from collections import Counter
 from django.db.models import Q
@@ -73,48 +74,37 @@ llm = ChatOpenAI(
 SECRET_KEY = settings.SECRET_KEY
 
 
+url: str = settings.SUPABASE_URL
+key: str = settings.SUPABASE_KEY
+supabase: Client = create_client(url, key)
+
 
 @csrf_exempt
 def get_website_details_by_url(request, slug):
     try:
         # Retrieve the user data using the email
         user_url = "http://localhost:5000/" + slug
-        user = CustomUser.objects.get(url=user_url)  # Use the email field
-        data_to_return = user.data
+        response = supabase.table("user_data").select("*").eq('url', user_url).execute()
+        data_to_return = response.data[0]['data']
         return JsonResponse({"content": data_to_return}, status=200)
 
-    except jwt.ExpiredSignatureError:
-        return JsonResponse({"error": "Token has expired"}, status=401)
-    except jwt.InvalidTokenError:
-        return JsonResponse({"error": "Invalid token"}, status=401)
     except ObjectDoesNotExist:
         return JsonResponse({"error": "User not found"}, status=404)
     
 @csrf_exempt
 def get_website_details(request):
     # Get the Authorization header
+    # NEED TO ADD VALIDATION WITH SUPABASE
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
         return JsonResponse({"error": "Authorization token missing or invalid"}, status=401)
 
     token = auth_header.split(" ")[1]
+    response = supabase.table("user_data").select("*").eq('id', token).execute()
+    if response.data[0]['data'] is None:
+        return JsonResponse({"content": {}}, status=200)
+    return JsonResponse({"content": response.data[0]['data']}, status=200)
 
-    try:
-        # Decode the token
-        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        email = decoded_token.get("email")  # Extract the email from the decoded token
-
-        # Retrieve the user data using the email
-        user = CustomUser.objects.get(email=email)  # Use the email field
-        data_to_return = user.data
-        return JsonResponse({"content": data_to_return}, status=200)
-
-    except jwt.ExpiredSignatureError:
-        return JsonResponse({"error": "Token has expired"}, status=401)
-    except jwt.InvalidTokenError:
-        return JsonResponse({"error": "Invalid token"}, status=401)
-    except ObjectDoesNotExist:
-        return JsonResponse({"error": "User not found"}, status=404)
     
 @csrf_exempt
 def save_website_details(request):
@@ -128,61 +118,49 @@ def save_website_details(request):
             if not website_data or not user_token:
                 return JsonResponse(
                     {"error": "Missing data or user token"}, 
-                    status=status.HTTP_400_BAD_REQUEST
+                    status=400
                 )
 
-            # Decode the JWT token to extract the email
-            try:
-                decoded_token = jwt.decode(
-                    user_token, settings.SECRET_KEY, algorithms=["HS256"]
-                )
-                user_email = decoded_token.get("email")
-            except jwt.ExpiredSignatureError:
-                return JsonResponse(
-                    {"error": "Token has expired"}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            except jwt.InvalidTokenError:
-                return JsonResponse(
-                    {"error": "Invalid token"}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+            # Retrieve the user from the Supabase 'user_data' using the user_token (UUID)
+            response = supabase.table('user_data').select('*').eq('id', user_token).execute()
 
-            # Retrieve the user from the database
-            try:
-                user = CustomUser.objects.get(email=user_email)
-            except CustomUser.DoesNotExist:
+            if len(response.data) == 0:
                 return JsonResponse(
                     {"error": "User not found"}, 
-                    status=status.HTTP_400_BAD_REQUEST
+                    status=400
                 )
+            # Extract the user data from the response
+            user = response.data[0]
 
-            # Save the website data
-            user.data = website_data
-            email_username = user.email.split('@')[0]
-            user_url = "http://localhost:5000/" + email_username
-            user.url = user_url
-            user.save()
+            # Save the website data and generate the URL
+            email_username = user['email'].split('@')[0]
+            user_url = f"http://localhost:5000/{email_username}"
+
+            # Update the user in the Supabase 'user_data' with the website data and URL
+            update_response = supabase.table('user_data').update({
+                'data': website_data, 
+                'url': user_url
+            }).eq('id', user['id']).execute()
 
             return JsonResponse(
                 {"message": "Website details saved successfully", "url": user_url}, 
-                status=status.HTTP_200_OK
+                status=200
             )
 
         except json.JSONDecodeError:
             return JsonResponse(
                 {"error": "Invalid JSON data"}, 
-                status=status.HTTP_400_BAD_REQUEST
+                status=400
             )
         except Exception as e:
             return JsonResponse(
                 {"error": str(e)}, 
-                status=status.HTTP_400_BAD_REQUEST
+                status=400
             )
     else:
         return JsonResponse(
             {"error": "Invalid HTTP method"}, 
-            status=status.HTTP_405_METHOD_NOT_ALLOWED
+            status=405
         )
 
 @csrf_exempt
@@ -192,37 +170,45 @@ def sign_up_user(request):
             data = json.loads(request.body)  # Parse the JSON body of the request
         except json.JSONDecodeError:
             return JsonResponse(
-                {"error": "Invalid JSON data"}, status=status.HTTP_400_BAD_REQUEST
+                {"error": "Invalid JSON data"}, status=400
             )
 
-        serializer = UserSerializer(data=data)
-        if serializer.is_valid():
-            # Save the new user
-            user = serializer.save()
+        email = data.get("email")
+        password = data.get("password")
 
-            # Generate the JWT token after user creation
-            token = jwt.encode(
-                {"email": user.email, "exp": datetime.utcnow() + timedelta(hours=24)},  # 24-hour expiry
-                SECRET_KEY,
-                algorithm="HS256",
-            )
+        # Step 1: Use Supabase's auth.sign_up to create the user
+        response = supabase.auth.sign_up({
+            "email": email,
+            "password": password,
+        })
 
-            # Return user data along with the JWT token
-            return JsonResponse(
-                {
-                    "message": "User created successfully",
-                    "token": token,
-                    "user": {
-                        "email": user.email,
-                    },
+        # Step 2: Extract user details from the response
+        user_data = response.user
+        user_id = user_data.id  # Supabase user ID (UUID)
+
+        #Step 3: swag
+        insert_response = supabase.table('user_data').insert({
+            'id': user_id,  # Use the UUID from authentication
+            'email': email,  # Optional: Store email if needed
+            'data': None,  # Leave other columns empty or set to None
+            'url': None  # You can leave 'url' blank for now as well
+        }).execute()
+
+        # Step 3: Return the response with user information
+        return JsonResponse(
+            {
+                "message": "User created successfully",
+                "user": {
+                    "id": user_id,
+                    "email": email,
                 },
-                status=status.HTTP_201_CREATED,
-            )
-        return JsonResponse(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            },
+            status=201,
+        )
     else:
         return JsonResponse(
             {"error": "Only POST requests are allowed"},
-            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+            status=405,
         )
     
 @csrf_exempt
@@ -235,41 +221,26 @@ def log_in_user(request):
 
         email = data.get("email")
         password = data.get("password")
-
-        if not email or not password:
-            return JsonResponse(
-                {"error": "Email and password are required"}, status=400
-            )
-
-        user = authenticate(request, username=email, password=password)
-
-        if user is not None:
-            login(request, user)
-
-            # Generate a token (if using JWT)
-            token = jwt.encode({"email": user.email, "exp": datetime.utcnow() + timedelta(hours=24)}, SECRET_KEY, algorithm="HS256")
-
-            return JsonResponse(
-                {
-                    "message": "Logged in successfully",
-                    "token": token,
-                    "user": {
-                        "id": user.id,
-                        "email": user.email,
-                    },
+        response = supabase.auth.sign_in_with_password({"email": email, "password":  password})
+        user_data = response.user
+        user_id = user_data.id  # Supabase user ID (UUID)
+        print(user_data)
+        return JsonResponse(
+            {
+                "message": "User logged in successfully",
+                "user": {
+                    "id": user_id,
+                    "email": email,
                 },
-                status=200,
-            )
-        else:
-            return JsonResponse(
-                {"error": "Invalid email or password"},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
+            },
+            status=201,
+        )
     else:
         return JsonResponse(
             {"error": "Only POST requests are allowed"},
-            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+            status=405,
         )
+
 
 
 @csrf_exempt
