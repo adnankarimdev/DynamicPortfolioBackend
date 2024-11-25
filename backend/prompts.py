@@ -205,7 +205,7 @@ I will be giving you a resume/cv. Your goal is to extract the information and pu
 
 Fill in the fields with appropriate information. You should also generate the description and summary field based on the resume/cv. Return ONLY the JSON object with no additional text or formatting. All string values must be wrapped in double quotes. For all logos, like logoUrl, use this format:  https://logo.clearbit.com/<full_company_name>.com. 
 Ensure the response can be parsed by json.loads() in Python.
-Note: for coAuthors, also include the name of the person who submitted this resume. Awards can be grants too. Please use your reasoning to figure out what should be included in the awards section.
+Note: for coAuthors, also include the name of the person who submitted this resume. Awards can be grants too. Please use your reasoning to figure out what should be included in the awards section. Finally, make sure anything in the same section that has dates is ordered from most recent (first) to earliest (last)
 
 
 
