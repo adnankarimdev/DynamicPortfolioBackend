@@ -2,7 +2,7 @@ prompt_resume_creator = """
 I will be giving you a resume/cv. Your goal is to extract the information and put it into this exact format:
 
 {
-  "name": "",
+  "name": "Hi, I'm <first_name> 👋",
   "initials": "",
   "url": "",
   "location": "",
