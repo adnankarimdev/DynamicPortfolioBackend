@@ -6,6 +6,7 @@ import os
 from dotenv import load_dotenv
 from collections import defaultdict
 from django.views.decorators.http import require_http_methods
+from django.core.files.storage import default_storage
 import time
 import re
 import json
@@ -79,6 +80,41 @@ key: str = settings.SUPABASE_KEY
 supabase: Client = create_client(url, key)
 
 
+
+@csrf_exempt
+def upload_profile_picture(request):
+    if request.method == "POST":
+        file = request.FILES.get("file")  # Get the file from the request
+        email = request.POST.get("email")  # Get the email from the request
+
+        if not file or not email:
+            return JsonResponse({"error": "File or email not provided"}, status=400)
+
+        # Save the file temporarily before uploading to Supabase
+        temp_file_path = default_storage.save(file.name, file)
+        with open(temp_file_path, "rb") as f:
+            response = supabase.storage.from_("test_bucket").upload(
+                path=f"public/{email}_avatar.png",  # Save file with email identifier
+                file=f,
+                file_options={"cache-control": "3600", "upsert": "true"},
+            )
+
+        print("storage response ", response)
+        # Remove the temp file after uploading
+        default_storage.delete(temp_file_path)
+
+        if response.get("error"):
+            return JsonResponse({"error": response["error"]}, status=500)
+
+        # Get public URL of the uploaded file
+        public_url = supabase.storage.from_("test_bucket").get_public_url(
+            f"public/{email}_avatar.png"
+        )
+
+        return JsonResponse({"url": public_url}, status=200)
+
+    return JsonResponse({"error": "Invalid request method"}, status=405)
+    
 @csrf_exempt
 def get_website_details_by_url(request, slug):
     try:
