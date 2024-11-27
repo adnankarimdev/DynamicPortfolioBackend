@@ -86,32 +86,54 @@ def upload_profile_picture(request):
     if request.method == "POST":
         file = request.FILES.get("file")  # Get the file from the request
         email = request.POST.get("email")  # Get the email from the request
+        response = supabase.storage.list_buckets()
+        response = supabase.storage.get_bucket('test_bucket')
+
+
+        print(response)
 
         if not file or not email:
             return JsonResponse({"error": "File or email not provided"}, status=400)
 
+        # Construct the path for the user's avatar
+        file_path = f"public/{email}_avatar.png"
         # Save the file temporarily before uploading to Supabase
         temp_file_path = default_storage.save(file.name, file)
-        with open(temp_file_path, "rb") as f:
-            response = supabase.storage.from_("test_bucket").upload(
-                path=f"public/{email}_avatar.png",  # Save file with email identifier
-                file=f,
-                file_options={"cache-control": "3600", "upsert": "true"},
-            )
 
-        print("storage response ", response)
-        # Remove the temp file after uploading
+        # Check if a file already exists at the path
+        existing_file_response = supabase.storage.from_("test_bucket").list(path="public")
+        existing_files = [item['name'] for item in existing_file_response]
+        
+        if file_path.split("/")[-1] in existing_files:
+            # File exists, update it
+            with open(temp_file_path, "rb") as f:
+                response = supabase.storage.from_("test_bucket").update(
+                    file=f,
+                    path=file_path,  # Save file with email identifier
+                    file_options={"cache-control": "3600", "upsert": "true"},
+                )
+        else:
+            with open(temp_file_path, "rb") as f:
+                response = supabase.storage.from_("test_bucket").upload(
+                    path=file_path,  # Save file with email identifier
+                    file=f,
+                    file_options={"cache-control": "3600", "upsert": "true"},
+                )
+
         default_storage.delete(temp_file_path)
+        # Check for errors in the upload/update response
+        # if response.get("error"):
+        #     return JsonResponse({"error": response["error"]["message"]}, status=500)
 
-        if response.get("error"):
-            return JsonResponse({"error": response["error"]}, status=500)
+        # Get the public URL of the uploaded/updated file
+        public_url_response = supabase.storage.from_("test_bucket").get_public_url(file_path)
+        
+        print(public_url_response)
 
-        # Get public URL of the uploaded file
-        public_url = supabase.storage.from_("test_bucket").get_public_url(
-            f"public/{email}_avatar.png"
-        )
+        if not public_url_response:
+            return JsonResponse({"error": "Failed to retrieve public URL"}, status=500)
 
-        return JsonResponse({"url": public_url}, status=200)
+        return JsonResponse({"url": public_url_response}, status=200)
 
     return JsonResponse({"error": "Invalid request method"}, status=405)
     

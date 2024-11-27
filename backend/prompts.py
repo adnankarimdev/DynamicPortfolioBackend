@@ -1,5 +1,5 @@
 prompt_resume_creator = """
-I will be giving you a resume/cv. Your goal is to extract the information and put it into this exact format:
+I will be giving you a resume/cv. Everything should be in first person for where it's relevant. Your goal is to extract the information and put it into this exact format:
 
 {
   "name": "Hi, I'm <first_name> 👋",
@@ -53,6 +53,7 @@ I will be giving you a resume/cv. Your goal is to extract the information and pu
   },
   "work": [
     {
+      "id": <randomly_genarated_32_int_number>
       "company": "",
       "href": "",
       "badges": [],
