@@ -1,5 +1,7 @@
 prompt_resume_creator = """
-I will be giving you a resume/cv. Everything should be in first person for where it's relevant. Your goal is to extract the information and put it into this exact format:
+I will be giving you a resume/cv. Everything should be in first person for where it's relevant. 
+Note: Certifications does not imply awards. They are two different things. For example, scholarships and grants fall under awards.
+Your goal is to extract the information and put it into this exact format:
 
 {
   "name": "Hi, I'm <first_name> 👋",
@@ -94,6 +96,8 @@ I will be giving you a resume/cv. Everything should be in first person for where
       "video": ""
     }
   ],
+  "projectsWebsiteHeader":<Engaging website title for projects section based on projects in resume; make it catchy>,
+  "projectsWebsiteSubtitle":<Engaging website description for projects section based on projects in resume; make it catchy>
   "hackathons": [
     {
       "title": "",
@@ -112,6 +116,8 @@ I will be giving you a resume/cv. Everything should be in first person for where
       ]
     }
   ],
+  "hackathonWebsiteHeader":<Engaging website title for projects section based on projects in resume; make it catchy. Leave empty if nothing in hackathon>,
+  "hackathonWebsiteSubtitle":<Engaging website description for projects section based on projects in resume; make it catchy. Leave empty if nothing in hackathon>
   "papers": [
     {
       "title": "",
@@ -121,9 +127,11 @@ I will be giving you a resume/cv. Everything should be in first person for where
       "journal": "",
       "doi": "",
       "abstract": "",
-      "link": ""
+      "link": "",
     }
   ],
+  "papersWebsiteHeader":<Engaging website title for papers section>,
+  "papersWebsiteSubtitle":<Engaging website description for papers section>
   "certifications": [
     {
       "title": "",
