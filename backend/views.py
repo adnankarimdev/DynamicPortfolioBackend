@@ -1,5 +1,6 @@
 from django.http import HttpResponse
 from django.http import HttpResponse
+import stripe
 import fitz  # PyMuPDF
 import io
 import os
@@ -78,7 +79,7 @@ SECRET_KEY = settings.SECRET_KEY
 url: str = settings.SUPABASE_URL
 key: str = settings.SUPABASE_KEY
 supabase: Client = create_client(url, key)
-
+stripe.api_key = settings.STRIPE_API_KEY
 
 
 @csrf_exempt
@@ -144,7 +145,7 @@ def get_website_details_by_url(request, slug):
         user_url = "http://localhost:5000/" + slug
         response = supabase.table("user_data").select("*").eq('url', user_url).execute()
         data_to_return = response.data[0]['data']
-        return JsonResponse({"content": data_to_return}, status=200)
+        return JsonResponse({"content": data_to_return, "url_hidden": response.data[0]['url_hidden']}, status=200)
 
     except ObjectDoesNotExist:
         return JsonResponse({"error": "User not found"}, status=404)
@@ -159,9 +160,10 @@ def get_website_details(request):
 
     token = auth_header.split(" ")[1]
     response = supabase.table("user_data").select("*").eq('id', token).execute()
+    print(response)
     if response.data[0]['data'] is None:
         return JsonResponse({"content": {}}, status=200)
-    return JsonResponse({"content": response.data[0]['data']}, status=200)
+    return JsonResponse({"content": response.data[0]['data'], "subscription_status":response.data[0]['subscription_status']}, status=200)
 
     
 @csrf_exempt
@@ -244,21 +246,28 @@ def sign_up_user(request):
         user_data = response.user
         user_id = user_data.id  # Supabase user ID (UUID)
 
-        #Step 3: swag
+        # Step 3: Create a Stripe Customer
+        stripe_customer = stripe.Customer.create(email=email, metadata={"supabase_user_id": user_id})
+
+        #Step 4: Initial User Data
         insert_response = supabase.table('user_data').insert({
             'id': user_id,  # Use the UUID from authentication
             'email': email,  # Optional: Store email if needed
             'data': None,  # Leave other columns empty or set to None
-            'url': None  # You can leave 'url' blank for now as well
+            'url': None,  # You can leave 'url' blank for now as well
+            'url_hidden': True,
+            'stripe_customer_id': stripe_customer['id'],  # Store Stripe customer ID
+            'subscription_status': 'inactive',  # Default status
         }).execute()
 
-        # Step 3: Return the response with user information
+        # Step 5: Return the response with user information
         return JsonResponse(
             {
                 "message": "User created successfully",
                 "user": {
                     "id": user_id,
                     "email": email,
+                    "stripe_customer_id": stripe_customer['id'],
                 },
             },
             status=201,
@@ -282,13 +291,16 @@ def log_in_user(request):
         response = supabase.auth.sign_in_with_password({"email": email, "password":  password})
         user_data = response.user
         user_id = user_data.id  # Supabase user ID (UUID)
-        print(user_data)
+        response = supabase.table("user_data").select("*").eq('email', email).execute()
+        stripe_id = response.data[0]['stripe_customer_id']
+        print(stripe_id)
         return JsonResponse(
             {
                 "message": "User logged in successfully",
                 "user": {
                     "id": user_id,
                     "email": email,
+                    "stripe_customer_id": stripe_id
                 },
             },
             status=201,
@@ -337,7 +349,80 @@ def resume_creator(request):
 
     return JsonResponse({"error": "Invalid request method"}, status=400)
 
+@csrf_exempt
+def create_checkout_session(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON data"}, status=400)
 
+        stripe_customer_id = data.get("stripe_customer_id")
+        price_id = "price_1QOdku00k5Gv8VrIJhm4YPyE"  # Use the ID of your subscription price in Stripe
+
+        try:
+            session = stripe.checkout.Session.create(
+                payment_method_types=["card"],
+                mode="subscription",
+                line_items=[{"price": price_id, "quantity": 1}],
+                success_url="http://localhost:5000/home?session_id={CHECKOUT_SESSION_ID}",
+                cancel_url="http://localhost:5000/login",
+                customer=stripe_customer_id,
+            )
+            return JsonResponse({"url": session.url}, status=200)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    else:
+        return JsonResponse({"error": "Only POST requests are allowed"}, status=405)
+    
+
+
+@csrf_exempt
+def stripe_webhook(request):
+    payload = request.body
+    sig_header = request.META["HTTP_STRIPE_SIGNATURE"]
+    endpoint_secret = settings.STRIPE_WEBHOOK_LOCAL_KEY
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
+    except ValueError as e:
+        return JsonResponse({"error": "Invalid payload"}, status=400)
+    except stripe.error.SignatureVerificationError as e:
+        return JsonResponse({"error": "Invalid signature"}, status=400)
+
+    # Handle the event
+    if event["type"] == "invoice.payment_succeeded":
+        subscription = event["data"]["object"]["subscription"]
+        customer_id = event["data"]["object"]["customer"]
+
+        # Update Supabase subscription status to 'active'
+        supabase.table("user_data").update({"subscription_status": "active", "url_hidden":False}).eq("stripe_customer_id", customer_id).execute()
+
+    elif event["type"] == "customer.subscription.deleted":
+        subscription = event["data"]["object"]
+        customer_id = subscription["customer"]
+
+        # Update Supabase subscription status to 'inactive'
+        supabase.table("user_data").update({"subscription_status": "inactive", "url_hidden":True}).eq("stripe_customer_id", customer_id).execute()
+
+    return JsonResponse({"status": "success"}, status=200)
+
+#this will be needed later
+def require_active_subscription(func):
+    def wrapper(request, *args, **kwargs):
+        user_id = request.headers.get("X-User-Id")  # Assume you pass the Supabase user ID in the header
+        response = supabase.table("user_data").select("subscription_status").eq("id", user_id).single().execute()
+
+        if response.get("data", {}).get("subscription_status") != "active":
+            return JsonResponse({"error": "Subscription required"}, status=403)
+
+        return func(request, *args, **kwargs)
+    return wrapper
+
+
+@require_active_subscription
+def protected_view(request):
+    return JsonResponse({"message": "Welcome to the subscription-only area!"})
 
 def create_portfolio(resume):
         messages = [

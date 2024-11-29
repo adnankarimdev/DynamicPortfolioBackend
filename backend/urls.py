@@ -1,6 +1,13 @@
 from django.urls import path
 
-from .views import (resume_creator, pdf_data, log_in_user, sign_up_user, save_website_details, get_website_details, get_website_details_by_url, upload_profile_picture)
+from .views import (resume_creator, 
+                    pdf_data, log_in_user, 
+                    sign_up_user, save_website_details, 
+                    get_website_details, 
+                    get_website_details_by_url, 
+                    upload_profile_picture,
+                    create_checkout_session,
+                    stripe_webhook)
 
 urlpatterns = [
     path("resume-creator/", resume_creator, name="resume_creator"),
@@ -11,4 +18,6 @@ urlpatterns = [
     path("get-website-details/", get_website_details, name="get_website_details"),
     path("upload-profile-picture/", upload_profile_picture, name="upload_profile_picture"),
     path("get-website-details-by-url/<str:slug>/", get_website_details_by_url, name="get_website_details_by_url"),
+    path("create-checkout-session/", create_checkout_session, name="create_checkout_session"),
+    path('webhook/', stripe_webhook, name='stripe_webhook'),
 ]

@@ -28,13 +28,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-e18sp@zij0k3c=-b*2(gb56w$0%kpt_4xy7mze(=lwx!iu-ym2"
 SUPABASE_URL="https://vchzcpsjnexzrzeqamix.supabase.co"
 SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZjaHpjcHNqbmV4enJ6ZXFhbWl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzIwODEzNjEsImV4cCI6MjA0NzY1NzM2MX0.kl5Lh8hphOTE-zDWNcdtFyeqnJ6yQLPm_jlYE-AQu2M"
+STRIPE_API_KEY="sk_test_51Q2Ry600k5Gv8VrINcTYtnTWsvhH79RAbLostGPSKAyKN4VX7XW344LNOAZr2M0OfXkxroRXa6K8d0Or9RHOGTPz00Yw96jmwv"
+STRIPE_WEBHOOK_LOCAL_KEY="whsec_a260af4d34359d4036690e3bcd93eb2d01e7ef732b7a7131e6a5b8f2b5710749"
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
 CORS_ALLOW_ALL_ORIGINS = True
 
-ALLOWED_HOSTS = ["localhost"]
+ALLOWED_HOSTS = ["localhost", "rneuq-2604-3d09-1c77-8cb0-1801-dd6f-cb19-2e25.a.free.pinggy.link"]
 
 
 # Application definition
@@ -95,28 +97,28 @@ WSGI_APPLICATION = "webapp.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-if os.getenv("ENV_DATABASE") == "PROD":
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.getenv("PROD_DB_NAME"),
-            "USER": os.getenv("PROD_DB_USER"),
-            "PASSWORD": os.getenv("PROD_DB_PASSWORD"),
-            "HOST": os.getenv("PROD_DB_HOST"),
-            "PORT": os.getenv("PROD_DB_PORT"),
-        }
-    }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.getenv("LOCAL_DB_NAME"),
-            "USER": os.getenv("LOCAL_DB_USER"),
-            "PASSWORD": os.getenv("LOCAL_DB_PASSWORD"),
-            "HOST": os.getenv("LOCAL_DB_HOST"),
-            "PORT": os.getenv("LOCAL_DB_PORT"),
-        }
-    }
+# if os.getenv("ENV_DATABASE") == "PROD":
+#     DATABASES = {
+#         "default": {
+#             "ENGINE": "django.db.backends.postgresql",
+#             "NAME": os.getenv("PROD_DB_NAME"),
+#             "USER": os.getenv("PROD_DB_USER"),
+#             "PASSWORD": os.getenv("PROD_DB_PASSWORD"),
+#             "HOST": os.getenv("PROD_DB_HOST"),
+#             "PORT": os.getenv("PROD_DB_PORT"),
+#         }
+#     }
+# else:
+#     DATABASES = {
+#         "default": {
+#             "ENGINE": "django.db.backends.postgresql",
+#             "NAME": os.getenv("LOCAL_DB_NAME"),
+#             "USER": os.getenv("LOCAL_DB_USER"),
+#             "PASSWORD": os.getenv("LOCAL_DB_PASSWORD"),
+#             "HOST": os.getenv("LOCAL_DB_HOST"),
+#             "PORT": os.getenv("LOCAL_DB_PORT"),
+#         }
+#     }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
