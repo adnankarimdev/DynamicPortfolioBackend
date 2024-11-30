@@ -1,7 +1,7 @@
 prompt_resume_creator = """
 I will be giving you a resume/cv. Everything should be in first person for where it's relevant. 
 Note: Certifications does not imply awards. They are two different things. For example, scholarships and grants fall under awards.
-Your goal is to extract the information and put it into this exact format:
+You must not take any shortcuts or skip any details present in the CV unless it does not match the format below. Your goal is to extract the information and put it into this exact format:
 
 {
   "name": "Hi, I'm <first_name> 👋",
